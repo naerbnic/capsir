@@ -1,6 +1,7 @@
 module Capsir
     ( Cont(..)
-    , Const(..)
+    , Literal(..)
+    , LitParam(..)
     , Value(..)
     , CpsExpr(..)
     ) where
@@ -11,20 +12,24 @@ data Cont = Cont ![String] !CpsExpr
   deriving Show
 
 -- | A value literal.
-data Const
+data Literal = Literal !String ![LitParam]
+  deriving Show
+
+-- | Parameters to literals
+data LitParam
     -- | A user-defined literal function with a name and constant param list.
-    = ConstFunc !String ![Const]
+    = LitParamLit !Literal
     -- | A constant integer
-    | ConstInt !Int
+    | LitParamInt !Int
     -- | A constant string
-    | ConstString !String
+    | LitParamString !String
     -- | A constant float
-    | ConstFloat !Double
+    | LitParamFloat !Double
   deriving Show
 
 data Value = ContValue !Cont    -- ^ A literal continuation value
            | VarValue !String   -- ^ A variable reference value
-           | ConstValue !Const  -- ^ A constant data value
+           | LitValue !Literal  -- ^ A constant data value
   deriving Show
 
 data CpsExpr 
