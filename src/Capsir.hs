@@ -7,6 +7,7 @@ import Data.Maybe (fromJust)
 data Cont = Cont
     ![String]  -- Formal parameter names
     !CpsExpr   -- The body expression of the continuation
+  deriving Show
 
 data Const = ConstFunc   -- A const creating function
                !String   -- The name of the function
@@ -14,10 +15,12 @@ data Const = ConstFunc   -- A const creating function
            | ConstInt !Int -- A constant int
            | ConstString !String  -- A constant string
            | ConstFloat !Double  -- A constant float
+  deriving Show
 
 data Value = ContValue !Cont  -- A literal continuation value
            | VarValue !String  -- A variable reference value
            | ConstValue !Const  -- A constant data value
+  deriving Show
 
 data CpsExpr = Apply ![Value]  -- The arguments to apply to the continuation
                      !Value    -- A value that evaluates to a continuation
@@ -27,7 +30,8 @@ data CpsExpr = Apply ![Value]  -- The arguments to apply to the continuation
                               -- call.
              | Fix ![(String, Cont)]  -- A mapping from function names to conts
                    !CpsExpr           -- The expression to execute in this environment
-             | Exit  -- Exits the program
+             | Exit Value  -- Exits the program
+  deriving Show
 
 -- Runtime semantic information
 
@@ -76,15 +80,15 @@ data ExecState = ExecState Env CpsExpr
 applySecond :: (a -> b) -> (c, a) -> (c, b)
 applySecond f (c, a) = (c, f a)
 
-step :: UserInst -> ExecState -> Maybe ExecState
-step _ (ExecState _ Exit) = Nothing
+step :: UserInst -> ExecState -> Either ExecState RuntimeValue
+step _ (ExecState env (Exit val)) = Right $ eval val env
 
 step _ (ExecState env (Apply args val)) =
     let ContInst contEnv (Cont params nextExpr) = evalAsCont val env
         runtimeArgs = map (`eval` env) args
         newFrame = Map.fromList $ zipOrError params runtimeArgs
         newEnv = FrameEnv newFrame contEnv
-    in Just $ ExecState newEnv nextExpr
+    in Left $ ExecState newEnv nextExpr
 
 step _ (ExecState env (Fix bindings nextExpr)) =
     -- Need to use a cyclic data structure to represent the environment
@@ -96,7 +100,7 @@ step _ (ExecState env (Fix bindings nextExpr)) =
         runtimeValPairs = map (applySecond createContInst) bindings
 
         contMap = Map.fromList runtimeValPairs
-    in Just $ ExecState newEnv nextExpr
+    in Left $ ExecState newEnv nextExpr
 
 step userInst (ExecState env (Inst instName args conts)) = 
     let instFunc = instructions userInst Map.! instName
@@ -106,4 +110,13 @@ step userInst (ExecState env (Inst instName args conts)) =
         ContInst contEnv (Cont params nextExpr) = evalAsCont nextCont env
         newFrame = Map.fromList $ zipOrError params results
         newEnv = FrameEnv newFrame contEnv
-    in Just $ ExecState newEnv nextExpr
+    in Left $ ExecState newEnv nextExpr
+
+eitherLoop :: (a -> Either a b) -> Either a b -> b
+eitherLoop step =
+    let go (Left a) = go (step a)
+        go (Right b) = b
+    in go
+
+runCont :: UserInst -> CpsExpr -> RuntimeValue
+runCont userInst expr = eitherLoop (step userInst) (Left (ExecState EmptyEnv expr))
