@@ -16,7 +16,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules: Capsir, Capsir.Runtime
+  exposed-modules: Capsir, Capsir.Runtime, Capsir.Check
   -- other-modules:       
   -- other-extensions:    
   ghc-options:         -Wall -Werror
