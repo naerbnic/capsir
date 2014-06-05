@@ -116,7 +116,7 @@ eitherLoop :: (a -> Either a b) -> a -> b
 eitherLoop step init =
     let go (Left a) = go (step a)
         go (Right b) = b
-    in go (Left init)
+    in go (step init)
 
 runCont :: UserInst -> CpsExpr -> RuntimeValue
 runCont userInst expr =
