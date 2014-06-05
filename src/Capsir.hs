@@ -112,12 +112,12 @@ step userInst (ExecState env (Inst instName args conts)) =
         newEnv = FrameEnv newFrame contEnv
     in Left $ ExecState newEnv nextExpr
 
-eitherLoop :: (a -> Either a b) -> Either a b -> b
-eitherLoop step =
+eitherLoop :: (a -> Either a b) -> a -> b
+eitherLoop step init =
     let go (Left a) = go (step a)
         go (Right b) = b
-    in go
+    in go (Left init)
 
 runCont :: UserInst -> CpsExpr -> RuntimeValue
 runCont userInst expr =
-    eitherLoop (step userInst) (Left (ExecState EmptyEnv expr))
+    eitherLoop (step userInst) (ExecState EmptyEnv expr)
