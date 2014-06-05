@@ -26,11 +26,17 @@ data Env v
     -- the chain.
     | FrameEnv (Map String (RuntimeValue v)) (Env v)
 
--- | The type of a user-defined instruction function. Takes a list of runtime
--- values, then generates a new set of runtime value outputs along with an
--- index into the continuation list which will be executed next.
+-- | A function implementing a single instruction of our code. @m@ is a monad
+-- that allows a change of state during execution, and @v@ is the value type of
+-- our instruction set.
+--
+-- The function is passed in a list of values, and returns a continuation index
+-- and a result list of values. For an instruction CpsExpr, the int is the index
+-- into the continuation list, and the result is applied to that continuation.
 type InstFunc m v = [v] -> m (Int, [v])
 
+-- | The concrete parameter type to a value constructor. Can either be an
+-- int, string, double, or another value.
 data LitParamVal v = LitParamValConst v
                    | LitParamValInt !Int
                    | LitParamValString !String
@@ -41,7 +47,7 @@ data LitParamVal v = LitParamValConst v
 -- value type.
 type LitFunc v = [LitParamVal v] -> v
 
-data InstructionSet m v = UserInst
+data InstructionSet m v = InstructionSet
     { instructions :: Map String (InstFunc m v)
     , literals :: Map String (LitFunc v)
     }
@@ -59,6 +65,7 @@ lookupEnv name (FrameEnv envMap child) =
       Just val -> Just val
       Nothing -> lookupEnv name child
 
+-- | Evaluates a literal into a runtime constant.
 evalLit :: InstructionSet m v -> Literal -> v
 evalLit instSet (Literal name params) =
     let litFunc = literals instSet Map.! name
