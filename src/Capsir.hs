@@ -119,4 +119,5 @@ eitherLoop step =
     in go
 
 runCont :: UserInst -> CpsExpr -> RuntimeValue
-runCont userInst expr = eitherLoop (step userInst) (Left (ExecState EmptyEnv expr))
+runCont userInst expr =
+    eitherLoop (step userInst) (Left (ExecState EmptyEnv expr))
