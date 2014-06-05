@@ -77,6 +77,13 @@ data UserInst = UserInst
 
 data ExecState = ExecState Env CpsExpr
 
+applyCont :: RuntimeValue -> [RuntimeValue] -> ExecState
+applyCont (InstRuntimeValue inst) args =
+    let ContInst contEnv (Cont params nextExpr) = inst
+        newFrame = Map.fromList $ zipOrError params args
+        newEnv = FrameEnv newFrame contEnv
+    in ExecState newEnv nextExpr
+
 applySecond :: (a -> b) -> (c, a) -> (c, b)
 applySecond f (c, a) = (c, f a)
 
@@ -84,11 +91,8 @@ step :: UserInst -> ExecState -> Either ExecState RuntimeValue
 step _ (ExecState env (Exit val)) = Right $ eval val env
 
 step _ (ExecState env (Apply args val)) =
-    let ContInst contEnv (Cont params nextExpr) = evalAsCont val env
-        runtimeArgs = map (`eval` env) args
-        newFrame = Map.fromList $ zipOrError params runtimeArgs
-        newEnv = FrameEnv newFrame contEnv
-    in Left $ ExecState newEnv nextExpr
+    let runtimeArgs = map (`eval` env) args
+    in Left $ applyCont (eval val env) runtimeArgs
 
 step _ (ExecState env (Fix bindings nextExpr)) =
     -- Need to use a cyclic data structure to represent the environment
@@ -107,10 +111,7 @@ step userInst (ExecState env (Inst instName args conts)) =
         runtimeArgs = map (`eval` env) args
         (branchIndex, results) = instFunc runtimeArgs
         nextCont = conts !! branchIndex
-        ContInst contEnv (Cont params nextExpr) = evalAsCont nextCont env
-        newFrame = Map.fromList $ zipOrError params results
-        newEnv = FrameEnv newFrame contEnv
-    in Left $ ExecState newEnv nextExpr
+    in Left $ applyCont (eval nextCont env) results
 
 eitherLoop :: (a -> Either a b) -> a -> b
 eitherLoop step init =
