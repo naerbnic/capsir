@@ -29,7 +29,7 @@ data Env v
 -- | The type of a user-defined instruction function. Takes a list of runtime
 -- values, then generates a new set of runtime value outputs along with an
 -- index into the continuation list which will be executed next.
-type InstFunc m v = [RuntimeValue v] -> m (Int, [RuntimeValue v])
+type InstFunc m v = [v] -> m (Int, [v])
 
 data LitParamVal v = LitParamValConst v
                    | LitParamValInt !Int
@@ -108,9 +108,16 @@ applyCont _ _ = error "Expected a continuation instance"
 applySecond :: (a -> b) -> (c, a) -> (c, b)
 applySecond f (c, a) = (c, f a)
 
+fromConst :: RuntimeValue v -> v
+fromConst (ConstRuntimeValue v) = v
+fromConst (InstRuntimeValue _) = error "Expected a constant value."
+
 -- | Takes a single step through the given execution state. Returns either a
 -- new execution state, or a single runtime value if the program exited.
-step :: Monad m => InstructionSet m v -> ExecState v -> m (Either (ExecState v) (RuntimeValue v))
+step :: Monad m 
+     => InstructionSet m v
+     -> ExecState v
+     -> m (Either (ExecState v) (RuntimeValue v))
 step instSet (ExecState env (Exit val)) = return $ Right $ eval instSet val env
 
 step instSet (ExecState env (Apply args val)) =
@@ -131,10 +138,11 @@ step _ (ExecState env (Fix bindings nextExpr)) =
 step instSet (ExecState env (Inst instName args conts)) = 
     let instFunc = instructions instSet Map.! instName
         runtimeArgs = map (\arg -> eval instSet arg env) args
+        values = map fromConst runtimeArgs
     in do 
-        (branchIndex, results) <- instFunc runtimeArgs
+        (branchIndex, results) <- instFunc values
         let nextCont = conts !! branchIndex
-        return $ Left $ applyCont (eval instSet nextCont env) results
+        return $ Left $ applyCont (eval instSet nextCont env) (map ConstRuntimeValue results)
 
 -- | Calls the function on the init, and loops while the output is left, 
 -- feeding the value back into the function. When it returns Right, yields the
