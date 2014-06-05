@@ -65,26 +65,28 @@ zipOrError (a:ax) (b:bx) = (a, b) : zipOrError ax bx
 zipOrError [] [] = []
 zipOrError _ _ = error "Mismatched input length in zip"
 
-data UserInst = UserInst {
-  
-}
+type InstFunc = [RuntimeValue] -> (Int, [RuntimeValue])
+
+data UserInst = UserInst
+    { instructions :: Map String InstFunc
+    }
 
 data ExecState = ExecState Env CpsExpr
 
 applySecond :: (a -> b) -> (c, a) -> (c, b)
 applySecond f (c, a) = (c, f a)
 
-step :: ExecState -> Maybe ExecState
-step (ExecState _ Exit) = Nothing
+step :: UserInst -> ExecState -> Maybe ExecState
+step _ (ExecState _ Exit) = Nothing
 
-step (ExecState env (Apply args val)) =
+step _ (ExecState env (Apply args val)) =
     let ContInst contEnv (Cont params nextExpr) = evalAsCont val env
         runtimeArgs = map (`eval` env) args
         newFrame = Map.fromList $ zipOrError params runtimeArgs
         newEnv = FrameEnv newFrame contEnv
     in Just $ ExecState newEnv nextExpr
 
-step (ExecState env (Fix bindings nextExpr)) =
+step _ (ExecState env (Fix bindings nextExpr)) =
     -- Need to use a cyclic data structure to represent the environment
     let newEnv = FrameEnv contMap env
 
@@ -96,4 +98,12 @@ step (ExecState env (Fix bindings nextExpr)) =
         contMap = Map.fromList runtimeValPairs
     in Just $ ExecState newEnv nextExpr
 
--- step (ExecState env (Inst
+step userInst (ExecState env (Inst instName args conts)) = 
+    let instFunc = instructions userInst Map.! instName
+        runtimeArgs = map (`eval` env) args
+        (branchIndex, results) = instFunc runtimeArgs
+        nextCont = conts !! branchIndex
+        ContInst contEnv (Cont params nextExpr) = evalAsCont nextCont env
+        newFrame = Map.fromList $ zipOrError params results
+        newEnv = FrameEnv newFrame contEnv
+    in Just $ ExecState newEnv nextExpr
