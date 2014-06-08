@@ -1,12 +1,11 @@
-module Capsir.Parse where
+module Capsir.Parse
+  (parseCapsir) where
 
 import Capsir
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Token
 
 -- Ambiguous Parser Combinators
-
-newtype StreamSet s = StreamSet { getStreams:: [s] }
 
 langDef :: LanguageDef st
 langDef = LanguageDef
@@ -16,10 +15,10 @@ langDef = LanguageDef
     , nestedComments = True
     , identStart = letter <|> char '_'
     , identLetter = alphaNum <|> char '_'
-    , opStart = oneOf "=>?@"
+    , opStart = oneOf "=>?@|"
     , opLetter = oneOf ">"
-    , reservedNames = [ "let", "in" ]
-    , reservedOpNames = [ ">>", "=>", "?" ]
+    , reservedNames = [ "let", "in", "exit" ]
+    , reservedOpNames = [ ">>", "=>", "?", "|" ]
     , caseSensitive = True
     }
 
@@ -47,7 +46,39 @@ parseValue = try (do
 
 
 parseExpr :: Parser CpsExpr
-parseExpr = undefined
+parseExpr = try (do
+      -- Parses an apply expression
+      values <- parseParamList parseValue
+      reservedOp lexer ">>"
+      contValue <- parseValue
+      return $ Apply values contValue
+    ) <|> try (do
+      -- Parses a singleton instruction
+      name <- ident
+      values <- parseParamList parseValue
+      reservedOp lexer ">>"
+      contValue <- parseValue
+      return $ Inst name values [contValue]
+    ) <|> try (do
+      -- Parses a branch instruction
+      name <- ident
+      values <- parseParamList parseValue
+      reservedOp lexer "?"
+      contValues <- braces lexer $ sepBy1 parseValue $ reservedOp lexer "|"
+      return $ Inst name values contValues
+    ) <|> try (do
+      -- Parses an exit expression
+      reserved lexer "exit"
+      value <- parseValue
+      return $ Exit value
+    ) <?> "Unable to parse CPS Expr"
     
-parse :: String -> Either [ParseError] CpsExpr
-parse = undefined
+parseCapsir :: String -> Either ParseError CpsExpr
+parseCapsir source =
+    let parser = do
+            whiteSpace lexer
+            expr <- parseExpr
+            eof
+            return expr
+    in parse parser "Unknown" source
+

@@ -1,4 +1,4 @@
-module TestRuntime where
+module TestRuntime(tests) where
 
 import Control.Monad.Identity
 import qualified Data.Map as Map
@@ -32,7 +32,7 @@ simpleProgram =
         ]))
   ] (Apply [intLit 0] (VarValue "f"))
 
-test = assertEqual "The program evaluates to 5"
+tests = assertEqual "The program evaluates to 5"
     (let ConstRuntimeValue i = runIdentity (runCont intInstSet simpleProgram)
      in i)
     5

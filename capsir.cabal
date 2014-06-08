@@ -32,7 +32,8 @@ library
 Test-Suite Runtime
   type:                exitcode-stdio-1.0
   main-is:             Main.hs
-  other-modules:       TestRuntime
+  other-modules:       TestRuntime,
+                       TestParse
   hs-source-dirs:      test
   build-depends:       
       base, Cabal >= 1.9.2, HUnit,

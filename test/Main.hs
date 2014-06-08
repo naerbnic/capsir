@@ -4,13 +4,11 @@ import Test.Framework.Providers.HUnit
 import System.Exit (exitFailure)
 
 import qualified TestRuntime
+import qualified TestParse
 
 import qualified Distribution.TestSuite as Cabal
 
-test1 = assertEqual "" 1 2
-test2 = assertEqual "" 3 4
-
-main = defaultMain
-    [ testCase "Simple Program Executes" TestRuntime.test
-    ]
+main = defaultMain $
+    [ testCase "Simple Program Executes" TestRuntime.tests ] ++
+    hUnitTestToTests TestParse.tests
           

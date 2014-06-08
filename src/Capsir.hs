@@ -9,11 +9,11 @@ module Capsir
 
 -- | A continuation with a formal parameter list and body expression.
 data Cont = Cont ![String] !CpsExpr
-  deriving Show
+  deriving (Eq, Show)
 
 -- | A value literal.
 data Literal = Literal !String ![LitParam]
-  deriving Show
+  deriving (Eq, Show)
 
 -- | Parameters to literals
 data LitParam
@@ -25,12 +25,12 @@ data LitParam
     | LitParamString !String
     -- | A constant float
     | LitParamFloat !Double
-  deriving Show
+  deriving (Eq, Show)
 
 data Value = ContValue !Cont    -- ^ A literal continuation value
            | VarValue !String   -- ^ A variable reference value
            | LitValue !Literal  -- ^ A constant data value
-  deriving Show
+  deriving (Eq, Show)
 
 data CpsExpr 
     -- | Applies the actual parameter values to the continuation value.
@@ -44,5 +44,5 @@ data CpsExpr
     | Fix ![(String, Cont)] !CpsExpr
     -- | Exits the program with the given value as a result.
     | Exit !Value
-  deriving Show
+  deriving (Eq, Show)
 
