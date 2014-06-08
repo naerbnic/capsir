@@ -31,6 +31,28 @@ parseParamList p = parens lexer $ commaSep lexer p
 ident :: Parser String
 ident = identifier lexer
 
+parseLiteral :: Parser Literal
+parseLiteral = do
+    _ <- char '@'
+    name <- ident
+    params <- parseParamList parseLitParam -- Clearly, add a rule to parse literal params
+    return $ Literal name params
+
+parseLitParam :: Parser LitParam
+parseLitParam = try (
+      -- Recursive Literal
+      fmap LitParamLit parseLiteral
+    ) <|> try (
+      -- String
+      fmap LitParamString $ stringLiteral lexer
+    ) <|> try (
+      -- Float
+      fmap LitParamFloat $ float lexer
+    ) <|> try (
+      -- Int
+      fmap (LitParamInt . fromInteger) $ decimal lexer
+    ) 
+
 parseValue :: Parser Value
 parseValue = try (do
     args <- parseParamList ident
@@ -38,10 +60,8 @@ parseValue = try (do
     expr <- parseExpr
     return $ ContValue $ Cont args expr
   ) <|> try (do
-    _ <- char '@'
-    name <- ident
-    _ <- parseParamList(char '_') -- Clearly, add a rule to parse literal params
-    return $ LitValue $ Literal name []
+    lit <- parseLiteral
+    return $ LitValue lit
   ) <|> try (fmap VarValue ident) <?> "Unable to parse Value"
 
 
