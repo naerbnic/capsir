@@ -17,7 +17,7 @@ langDef = LanguageDef
     , identLetter = alphaNum <|> char '_'
     , opStart = oneOf "=>?@|"
     , opLetter = oneOf ">"
-    , reservedNames = [ "let", "in", "exit" ]
+    , reservedNames = [ "let", "in", "exit", "let" ]
     , reservedOpNames = [ ">>", "=>", "?", "|" ]
     , caseSensitive = True
     }
@@ -35,8 +35,15 @@ parseLiteral :: Parser Literal
 parseLiteral = do
     _ <- char '@'
     name <- ident
-    params <- parseParamList parseLitParam -- Clearly, add a rule to parse literal params
+    params <- parseParamList parseLitParam
     return $ Literal name params
+
+parseCont :: Parser Cont
+parseCont = do
+    args <- parseParamList ident
+    reservedOp lexer "=>"
+    expr <- parseExpr
+    return $ Cont args expr
 
 parseLitParam :: Parser LitParam
 parseLitParam = try (
@@ -51,19 +58,23 @@ parseLitParam = try (
     ) <|> try (
       -- Int
       fmap (LitParamInt . fromInteger) $ decimal lexer
-    ) 
+    ) <?> "Unable to parse literal parameter"
 
 parseValue :: Parser Value
 parseValue = try (do
-    args <- parseParamList ident
-    reservedOp lexer "=>"
-    expr <- parseExpr
-    return $ ContValue $ Cont args expr
-  ) <|> try (do
-    lit <- parseLiteral
-    return $ LitValue lit
-  ) <|> try (fmap VarValue ident) <?> "Unable to parse Value"
+    fmap ContValue parseCont
+  ) <|> try (
+    fmap LitValue parseLiteral
+  ) <|> try (
+    fmap VarValue ident
+  ) <?> "Unable to parse Value"
 
+parseLetTerm :: Parser (String, Cont)
+parseLetTerm = do
+  name <- ident
+  cont <- parseCont
+  _ <- semi lexer
+  return (name, cont)
 
 parseExpr :: Parser CpsExpr
 parseExpr = try (do
@@ -91,6 +102,12 @@ parseExpr = try (do
       reserved lexer "exit"
       value <- parseValue
       return $ Exit value
+    ) <|> try (do
+      reserved lexer "fix"
+      pairs <- braces lexer $ do
+          many1 parseLetTerm
+      expr <- parseExpr
+      return $ Fix pairs expr
     ) <?> "Unable to parse CPS Expr"
     
 parseCapsir :: String -> Either ParseError CpsExpr
