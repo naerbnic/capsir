@@ -19,13 +19,15 @@ library
   exposed-modules:     Capsir,
                        Capsir.Runtime,
                        Capsir.Check,
-                       Capsir.Parse
+                       Capsir.Parse,
+                       Capsir.Ids
   -- other-modules:       
   -- other-extensions:    
   ghc-options:         -Wall -Werror
   build-depends:       base >=4.6 && <4.7,
                        containers,
-                       parsec
+                       parsec,
+                       mtl
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -39,8 +41,10 @@ Test-Suite Runtime
       base, Cabal >= 1.9.2, HUnit,
       test-framework >= 0.6,
       test-framework-hunit >= 0.2,
+      parsec,
       capsir,
       containers,
-      mtl
+      mtl,
+      MissingH
 
   default-language:    Haskell2010

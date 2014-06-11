@@ -3,13 +3,18 @@ module TestParse
 
 import Capsir
 import Capsir.Parse
+import Text.ParserCombinators.Parsec.Error
 import Test.HUnit
+import qualified Data.String.Utils as Utils
 
-assertParses :: (Show a, Eq a) => (String -> Either e a) -> a -> String -> Assertion
+assertParses :: (Show a, Eq a) => (String -> Either ParseError a) -> a -> String -> Assertion
 assertParses parseFunc expected source = 
     case parseFunc source of
       Right testVal -> assertEqual "Didn't parse correctly" expected testVal
-      Left _ -> fail $ "Input string did not parse: " ++ source
+      Left e ->
+          let msgs = errorMessages e
+              errorStrings = map messageString msgs
+          in fail ("Input string did not parse: " ++ source ++ "\n" ++ (Utils.join "\n" errorStrings))
 
 assertExprParses :: CpsExpr -> String -> Assertion
 assertExprParses = assertParses parseCapsir
@@ -36,6 +41,13 @@ testParseExit = TestLabel "Test Exit parses correctly" $ TestCase $
         (Exit $ VarValue "a")
         "exit a"
 
+-- Test value parsing
+
+testParseLiteralInt = TestLabel "Test A Literal Parses Correctly" $ TestCase $
+    assertExprParses
+        (Exit $ LitValue $ Literal "int" [LitParamInt 5])
+        "exit @int(5)"
+
 -- Test Group
 
 tests = TestLabel "Parse Tests" $ TestList
@@ -43,4 +55,5 @@ tests = TestLabel "Parse Tests" $ TestList
     , testParseSingletonInst
     , testParseBranchInst
     , testParseExit
+    , testParseLiteralInt
     ]

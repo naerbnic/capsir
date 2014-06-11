@@ -57,7 +57,7 @@ parseLitParam = try (
       fmap LitParamFloat $ float lexer
     ) <|> try (
       -- Int
-      fmap (LitParamInt . fromInteger) $ decimal lexer
+      fmap (LitParamInt . fromInteger) $ integer lexer
     ) <?> "Unable to parse literal parameter"
 
 parseValue :: Parser Value
