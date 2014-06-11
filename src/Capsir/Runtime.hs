@@ -119,6 +119,23 @@ fromConst :: RuntimeValue v -> v
 fromConst (ConstRuntimeValue v) = v
 fromConst (InstRuntimeValue _) = error "Expected a constant value."
 
+-- | Given a mapping from names to continuations, create a new
+-- environment where each name is mapped to the instantiation of
+-- its continuation with the same environment.
+--
+-- [example needed]
+makeFixedEnv :: [(String, Cont)] -> Env v -> Env v
+makeFixedEnv bindings env = 
+    let newEnv = FrameEnv contMap env
+
+        -- Instantiates a Cont
+        createContInst c = InstRuntimeValue $ ContInst newEnv c
+
+        runtimeValPairs = map (applySecond createContInst) bindings
+
+        contMap = Map.fromList runtimeValPairs
+    in newEnv
+
 -- | Takes a single step through the given execution state. Returns either a
 -- new execution state, or a single runtime value if the program exited.
 step :: Monad m 
@@ -133,14 +150,7 @@ step instSet (ExecState env (Apply args val)) =
 
 step _ (ExecState env (Fix bindings nextExpr)) =
     -- Need to use a cyclic data structure to represent the environment
-    let newEnv = FrameEnv contMap env
-
-        createContInst c = InstRuntimeValue $ ContInst newEnv c
-
-        runtimeValPairs = map (applySecond createContInst) bindings
-
-        contMap = Map.fromList runtimeValPairs
-    in return $ Left $ ExecState newEnv nextExpr
+    return $ Left $ ExecState (makeFixedEnv bindings env) nextExpr
 
 step instSet (ExecState env (Inst instName args conts)) = 
     let instFunc = instructions instSet Map.! instName

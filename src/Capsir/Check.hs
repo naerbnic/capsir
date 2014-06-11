@@ -8,6 +8,7 @@ import qualified Data.Set as Set
 
 data BaseType t = ContType [t]
                 | ConstType 
+  deriving (Eq, Show)
 
 freeVarsFromList :: (a -> Set String) -> [a] -> Set String
 freeVarsFromList f = Set.unions . map f
@@ -53,7 +54,7 @@ data Type = VarT Int
           | BaseT (BaseType Type)
   deriving (Eq, Show)
 
-data Fact = Assert Int TypeWithVar
+data Fact = Assert Int Type
           | Unify Int String
   deriving (Eq, Show)
 
