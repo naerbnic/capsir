@@ -142,24 +142,28 @@ step :: Monad m
      => InstructionSet m v
      -> ExecState v
      -> m (Either (ExecState v) (RuntimeValue v))
-step instSet (ExecState env (Exit val)) = return $ Right $ eval instSet val env
-
-step instSet (ExecState env (Apply args val)) =
-    let runtimeArgs = map (\arg -> eval instSet arg env) args
-    in return $ Left $ applyCont (eval instSet val env) runtimeArgs
-
-step _ (ExecState env (Fix bindings nextExpr)) =
-    -- Need to use a cyclic data structure to represent the environment
-    return $ Left $ ExecState (makeFixedEnv bindings env) nextExpr
-
-step instSet (ExecState env (Inst instName args conts)) = 
-    let instFunc = instructions instSet Map.! instName
-        runtimeArgs = map (\arg -> eval instSet arg env) args
-        values = map fromConst runtimeArgs
-    in do 
-        (branchIndex, results) <- instFunc values
-        let nextCont = conts !! branchIndex
-        return $ Left $ applyCont (eval instSet nextCont env) (map ConstRuntimeValue results)
+     
+step instSet (ExecState env expr) =
+    let stepEval v = eval instSet v env
+    in case expr of
+      Exit val -> return $ Right $ stepEval val
+      
+      Apply args val ->
+          let runtimeArgs = map stepEval args
+          in return $ Left $ applyCont (stepEval val) runtimeArgs
+          
+      Fix bindings nextExpr ->
+          return $ Left $ ExecState (makeFixedEnv bindings env) nextExpr
+          
+      Inst instName args conts ->
+          let instFunc = instructions instSet Map.! instName
+              runtimeArgs = map stepEval args
+              values = map fromConst runtimeArgs
+          in do 
+              (branchIndex, results) <- instFunc values
+              let nextCont = conts !! branchIndex
+              let nextContInst = eval instSet nextCont env
+              return $ Left $ applyCont nextContInst (map ConstRuntimeValue results)
 
 -- | Calls the function on the init, and loops while the output is left, 
 -- feeding the value back into the function. When it returns Right, yields the

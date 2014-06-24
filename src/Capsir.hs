@@ -32,7 +32,7 @@ data Value = ContValue !Cont    -- ^ A literal continuation value
            | LitValue !Literal  -- ^ A constant data value
   deriving (Eq, Show)
 
-data CpsExpr 
+data CpsExpr
     -- | Applies the actual parameter values to the continuation value.
     = Apply ![Value] !Value
     -- | A user-defined instruction that takes the actual parameters, and
